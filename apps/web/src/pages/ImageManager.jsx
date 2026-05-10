@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { ArrowLeft, Save, Loader2, Image as ImageIcon, AlertTriangle, Trash2, X, Pencil, ChevronUp, ChevronDown, UploadCloud, Flag, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Image as ImageIcon, AlertTriangle, Trash2, X, Pencil, ChevronUp, ChevronDown, UploadCloud, Flag, RefreshCw, Shuffle } from 'lucide-react';
 import { toast } from 'sonner';
 import pb from '@/lib/pocketbaseClient.js';
 import { detectImageOrientation, naturalSort, normalizeGalleryImages } from '@/utils/galleryHelpers.js';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import ImageUploadZone from '@/components/admin/ImageUploadZone.jsx';
 import ImageGridCard from '@/components/admin/ImageGridCard.jsx';
 import ConfirmDeleteModal from '@/components/admin/ConfirmDeleteModal.jsx';
@@ -48,7 +49,8 @@ const normalizeSectionForSave = (section, index) => {
     startFilename,
     endFilename,
     coverFilename: section.coverFilename || startFilename,
-    imageFilenames
+    imageFilenames,
+    compositionMode: section.compositionMode === 'chronological' ? 'chronological' : 'adaptive'
   };
 };
 
@@ -87,6 +89,7 @@ const normalizeEditableSections = (record, normalizedImages) => {
         endFilename: section.endFilename || imageFilenames[imageFilenames.length - 1] || '',
         coverFilename: section.coverFilename || section.startFilename || imageFilenames[0] || '',
         imageFilenames,
+        compositionMode: section.compositionMode === 'chronological' ? 'chronological' : 'adaptive',
         isVisible: true,
         order: section.order ?? index
       };
@@ -352,6 +355,7 @@ const ImageManager = () => {
                 ...section,
                 sectionTitle: title,
                 sectionDescription: chapterDraft.sectionDescription.trim(),
+                compositionMode: section.compositionMode === 'chronological' ? 'chronological' : 'adaptive',
                 isVisible: true
               }
             : section
@@ -382,6 +386,7 @@ const ImageManager = () => {
           endFilename,
           coverFilename: selectedImages[0]?.filename || '',
           imageFilenames: selectedImages.map(image => image.filename),
+          compositionMode: 'adaptive',
           isVisible: true,
           order: sections.length
         }, sections.length);
@@ -466,6 +471,24 @@ const ImageManager = () => {
       await persistSections(reorderedSections, 'Chapter order updated');
     } catch (err) {
       toast.error('Failed to reorder chapter');
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggleSectionComposition = async (sectionId, useAdaptiveMix) => {
+    try {
+      setIsSaving(true);
+      const nextSections = sections.map(section => (
+        section.id === sectionId
+          ? { ...section, compositionMode: useAdaptiveMix ? 'adaptive' : 'chronological' }
+          : section
+      ));
+
+      await persistSections(nextSections, useAdaptiveMix ? 'Bildmix aktiviert' : 'Chronologische Reihenfolge aktiviert');
+    } catch (err) {
+      toast.error('Bildmix konnte nicht gespeichert werden');
       console.error(err);
     } finally {
       setIsSaving(false);
@@ -960,6 +983,19 @@ const ImageManager = () => {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <div className="flex h-9 items-center gap-2 rounded-md border border-border px-3 text-sm">
+                          <Shuffle className="h-4 w-4 text-muted-foreground" />
+                          <Label htmlFor={`composition-${section.id}`} className="cursor-pointer whitespace-nowrap text-sm font-medium">
+                            Bildmix optimieren
+                          </Label>
+                          <Switch
+                            id={`composition-${section.id}`}
+                            checked={section.compositionMode !== 'chronological'}
+                            onCheckedChange={(checked) => handleToggleSectionComposition(section.id, checked)}
+                            disabled={isSaving}
+                            aria-label={`Bildmix fuer ${section.sectionTitle} optimieren`}
+                          />
+                        </div>
                         <Button type="button" variant="outline" size="sm" onClick={() => handleMoveSection(section.id, -1)} disabled={isSaving || sectionIndex === 0}>
                           <ChevronUp className="w-4 h-4" />
                           <span className="sr-only">Nach oben</span>

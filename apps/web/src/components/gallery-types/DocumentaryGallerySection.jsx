@@ -2,23 +2,100 @@
 import React from 'react';
 import { getImagesBySection } from '@/utils/galleryHelpers.js';
 import { motion, useReducedMotion } from 'framer-motion';
-import { getImageAlt, getImageKey, getImageOrientation, getImageUrl } from '@/components/gallery-types/galleryLayoutUtils.js';
+import { getImageAlt, getImageKey, getImageOrientation, getImageUrl, getSectionDetails } from '@/components/gallery-types/galleryLayoutUtils.js';
 
-const getDocumentaryCellClass = (image) => {
-  const orientation = getImageOrientation(image);
+const GROUP_SIZE = 6;
 
-  if (orientation === 'landscape') {
-    return 'col-span-2 sm:col-span-2 md:col-span-3 xl:col-span-4 row-span-2';
-  }
-
-  if (orientation === 'square') {
-    return 'col-span-1 sm:col-span-2 md:col-span-2 xl:col-span-2 row-span-2';
-  }
-
-  return 'col-span-1 sm:col-span-1 md:col-span-2 xl:col-span-2 row-span-3';
+const SLOT_PATTERNS = {
+  storyMix: [
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-1', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-4 md:mt-16', preferred: ['portrait'] },
+    { className: 'sm:col-span-6 md:col-span-6 md:col-start-7', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-6 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-7 md:mt-10', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-10 md:mt-10', preferred: ['portrait', 'landscape'] }
+  ],
+  landscapeLead: [
+    { className: 'sm:col-span-6 md:col-span-7 md:col-start-3', preferred: ['landscape'] },
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-1', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-10', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-6 md:col-span-5 md:col-start-4', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-1 md:mt-8', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-9 md:mt-8', preferred: ['landscape', 'portrait'] }
+  ],
+  portraitSeries: [
+    { className: 'sm:col-span-2 md:col-span-3 md:col-start-1', preferred: ['portrait'] },
+    { className: 'sm:col-span-2 md:col-span-3 md:col-start-4 md:mt-10', preferred: ['portrait'] },
+    { className: 'sm:col-span-2 md:col-span-3 md:col-start-7', preferred: ['portrait'] },
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-10 md:mt-14', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-6 md:col-span-5 md:col-start-7', preferred: ['landscape', 'portrait'] }
+  ],
+  balanced: [
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-1', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-5', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-6 md:col-span-4 md:col-start-9', preferred: ['portrait', 'landscape'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-2 md:mt-8', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-3 md:col-start-7 md:mt-8', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-6 md:col-span-3 md:col-start-10 md:mt-8', preferred: ['portrait', 'landscape'] }
+  ]
 };
 
-const DocumentaryTile = React.memo(({ image, index, onImageClick }) => {
+const getLayoutVariant = (images) => {
+  const counts = images.reduce((acc, image) => {
+    const orientation = getImageOrientation(image);
+    acc[orientation] = (acc[orientation] || 0) + 1;
+    return acc;
+  }, {});
+
+  if ((counts.landscape || 0) >= 2 && (counts.portrait || 0) >= 2) return 'storyMix';
+  if ((counts.landscape || 0) >= 3) return 'landscapeLead';
+  if ((counts.portrait || 0) >= 4) return 'portraitSeries';
+  return 'balanced';
+};
+
+const orderAdaptiveImages = (images, pattern) => {
+  const remaining = [...images];
+
+  return pattern.slice(0, images.length).map((slot) => {
+    const matchIndex = remaining.findIndex((image) => slot.preferred.includes(getImageOrientation(image)));
+    const selectedIndex = matchIndex >= 0 ? matchIndex : 0;
+    const [selected] = remaining.splice(selectedIndex, 1);
+    return selected;
+  });
+};
+
+const buildDocumentaryGroups = (images, compositionMode) => {
+  const groups = [];
+
+  for (let index = 0; index < images.length; index += GROUP_SIZE) {
+    const chunk = images.slice(index, index + GROUP_SIZE);
+    const variant = getLayoutVariant(chunk);
+    const pattern = SLOT_PATTERNS[variant];
+    const orderedImages = compositionMode === 'chronological'
+      ? chunk
+      : orderAdaptiveImages(chunk, pattern);
+
+    groups.push({
+      id: `${variant}-${index}`,
+      pattern,
+      images: orderedImages
+    });
+  }
+
+  return groups;
+};
+
+const getDocumentaryImageClass = (image) => {
+  const orientation = getImageOrientation(image);
+
+  if (orientation === 'landscape') return 'w-full max-h-[min(72vh,44rem)] object-contain';
+  if (orientation === 'square') return 'w-full max-h-[min(66vh,38rem)] object-contain';
+
+  return 'h-auto max-h-[min(78vh,48rem)] w-auto max-w-full object-contain';
+};
+
+const DocumentaryImage = React.memo(({ image, index, slot, onImageClick }) => {
   const url = getImageUrl(image);
   const shouldReduceMotion = useReducedMotion();
   const motionProps = shouldReduceMotion
@@ -34,14 +111,14 @@ const DocumentaryTile = React.memo(({ image, index, onImageClick }) => {
     <motion.button
       type="button"
       {...motionProps}
-      className={`group relative block h-full min-h-0 w-full cursor-pointer overflow-hidden border border-black/5 bg-stone-100 text-left shadow-sm transition-colors duration-200 hover:bg-stone-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-white/10 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${getDocumentaryCellClass(image)}`}
+      className={`group relative flex w-full cursor-pointer justify-center self-start text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4 focus-visible:ring-offset-background ${slot.className}`}
       onClick={() => onImageClick(url)}
     >
       <img
         src={url}
         alt={getImageAlt(image, `Documentary image ${index + 1}`)}
         loading="lazy"
-        className="h-full w-full object-contain p-1.5 transition-opacity duration-200 group-hover:opacity-95 md:p-2"
+        className={`block transition-opacity duration-200 group-hover:opacity-90 ${getDocumentaryImageClass(image)}`}
       />
     </motion.button>
   );
@@ -49,6 +126,9 @@ const DocumentaryTile = React.memo(({ image, index, onImageClick }) => {
 
 const DocumentaryGallerySection = ({ gallery, section, onImageClick, favorites, onToggleFavorite }) => {
   const images = getImagesBySection(gallery, section);
+  const sectionDetails = getSectionDetails(gallery, section);
+  const compositionMode = sectionDetails.compositionMode === 'chronological' ? 'chronological' : 'adaptive';
+  const groups = buildDocumentaryGroups(images, compositionMode);
 
   if (!images || images.length === 0) return null;
 
@@ -70,16 +150,22 @@ const DocumentaryGallerySection = ({ gallery, section, onImageClick, favorites, 
           </span>
         </motion.div>
 
-        <div
-          className="grid auto-rows-[clamp(5.25rem,8vw,8.5rem)] grid-cols-2 gap-2 [grid-auto-flow:dense] sm:grid-cols-4 md:grid-cols-6 md:gap-3 xl:grid-cols-8"
-        >
-          {images.map((image, index) => (
-            <DocumentaryTile
-              key={getImageKey(image, `${section}-${index}`)}
-              image={image}
-              index={index}
-              onImageClick={onImageClick}
-            />
+        <div className="space-y-14 md:space-y-20 xl:space-y-24">
+          {groups.map((group, groupIndex) => (
+            <div
+              key={group.id}
+              className="grid grid-cols-1 items-start gap-x-6 gap-y-8 sm:grid-cols-6 md:grid-cols-12 md:gap-x-8 md:gap-y-10 xl:gap-x-10"
+            >
+              {group.images.map((image, imageIndex) => (
+                <DocumentaryImage
+                  key={getImageKey(image, `${section}-${groupIndex}-${imageIndex}`)}
+                  image={image}
+                  index={(groupIndex * GROUP_SIZE) + imageIndex}
+                  slot={group.pattern[imageIndex] || SLOT_PATTERNS.balanced[imageIndex % SLOT_PATTERNS.balanced.length]}
+                  onImageClick={onImageClick}
+                />
+              ))}
+            </div>
           ))}
         </div>
       </div>
