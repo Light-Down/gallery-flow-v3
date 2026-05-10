@@ -38,3 +38,9 @@ Runtime data, uploaded images, generated thumbnails, local databases, build outp
 ## Deployment Notes
 
 The current architecture is intentionally lightweight for Hostinger Business hosting: Vite builds static frontend assets, PocketBase handles data/files, and admin thumbnails should use PocketBase thumbnail URLs instead of original high-resolution images.
+
+More deployment notes live in `docs/DEPLOYMENT.md`.
+
+## Contributing
+
+Contributions are welcome under the same GPL-3.0-only license. See `CONTRIBUTING.md` before submitting changes.
