@@ -181,7 +181,6 @@ const normalizeSectionFilenameSet = (section) => {
 export const getVisibleSections = (gallery) => {
   if (!gallery) return [];
 
-  const allImages = normalizeGalleryImages(gallery);
   const sectionCandidates = (gallery.sections || [])
     .filter(section => !section.isAtelierConfig)
     .filter(section => Array.isArray(section.imageFilenames) && section.imageFilenames.length > 0)
@@ -191,29 +190,7 @@ export const getVisibleSections = (gallery) => {
     return [getAutomaticSection(gallery)];
   }
 
-  const assignedFilenames = new Set();
-  sectionCandidates.forEach(section => {
-    section.imageFilenames.forEach(filename => assignedFilenames.add(normalizeFilename(filename)));
-  });
-
-  const visibleSections = sectionCandidates.filter(section => section.isVisible !== false);
-  const unassignedFilenames = allImages
-    .filter(image => image.filename && !assignedFilenames.has(normalizeFilename(image.filename)))
-    .map(image => image.filename);
-
-  if (unassignedFilenames.length > 0) {
-    visibleSections.push({
-      id: 'unassigned',
-      sectionTitle: 'Unassigned',
-      sectionDescription: '',
-      imageFilenames: unassignedFilenames,
-      isVisible: true,
-      order: visibleSections.length,
-      isSystem: true
-    });
-  }
-
-  return visibleSections;
+  return sectionCandidates;
 };
 
 export const validateSectionRanges = (sections, imageCount) => {

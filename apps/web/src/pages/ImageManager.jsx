@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { ArrowLeft, Save, Loader2, Image as ImageIcon, AlertTriangle, Trash2, FolderPlus, X, Eye, EyeOff, Pencil, ChevronUp, ChevronDown, UploadCloud, Flag } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Image as ImageIcon, AlertTriangle, Trash2, X, Pencil, ChevronUp, ChevronDown, UploadCloud, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import pb from '@/lib/pocketbaseClient.js';
 import { naturalSort, normalizeGalleryImages } from '@/utils/galleryHelpers.js';
@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import ImageUploadZone from '@/components/admin/ImageUploadZone.jsx';
 import ImageGridCard from '@/components/admin/ImageGridCard.jsx';
 import ConfirmDeleteModal from '@/components/admin/ConfirmDeleteModal.jsx';
@@ -88,7 +87,7 @@ const normalizeEditableSections = (record, normalizedImages) => {
         endFilename: section.endFilename || imageFilenames[imageFilenames.length - 1] || '',
         coverFilename: section.coverFilename || section.startFilename || imageFilenames[0] || '',
         imageFilenames,
-        isVisible: section.isVisible !== false,
+        isVisible: true,
         order: section.order ?? index
       };
     })
@@ -362,7 +361,7 @@ const ImageManager = () => {
                 ...section,
                 sectionTitle: title,
                 sectionDescription: chapterDraft.sectionDescription.trim(),
-                isVisible: chapterDraft.isVisible
+                isVisible: true
               }
             : section
         ));
@@ -392,7 +391,7 @@ const ImageManager = () => {
           endFilename,
           coverFilename: selectedImages[0]?.filename || '',
           imageFilenames: selectedImages.map(image => image.filename),
-          isVisible: chapterDraft.isVisible,
+          isVisible: true,
           order: sections.length
         }, sections.length);
 
@@ -476,21 +475,6 @@ const ImageManager = () => {
       await persistSections(reorderedSections, 'Chapter order updated');
     } catch (err) {
       toast.error('Failed to reorder chapter');
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleToggleSectionVisibility = async (sectionId) => {
-    try {
-      setIsSaving(true);
-      const nextSections = sections.map(section => (
-        section.id === sectionId ? { ...section, isVisible: section.isVisible === false } : section
-      ));
-      await persistSections(nextSections, 'Chapter visibility updated');
-    } catch (err) {
-      toast.error('Failed to update chapter');
       console.error(err);
     } finally {
       setIsSaving(false);
@@ -653,7 +637,6 @@ const ImageManager = () => {
 
   const missingDataImages = images.filter(img => !img.url || !img.filename);
   const missingDataWarning = missingDataImages.length > 0;
-  const activeEndImage = images.find(image => getFilenameKey(image.filename) === getFilenameKey(activeEndFilename));
   const changingStartSection = sections.find(section => section.id === changingStartSectionId);
 
   return (
@@ -766,40 +749,27 @@ const ImageManager = () => {
                   <p className="text-sm text-muted-foreground">
                     {changingStartSection
                       ? `Wähle ein neues Startbild für „${changingStartSection.sectionTitle}“.`
-                      : activeEndImage
-                        ? `Endbild gewählt: ${activeEndImage.filename}`
-                        : 'Wähle im freien Bereich das letzte Bild für das nächste Kapitel.'}
+                      : 'Erstelle Kapitel direkt im freien Bereich über „Kapitel bis hier“. Nicht zugeordnete Bilder bleiben nur im Admin sichtbar.'}
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {(activeEndFilename || changingStartSectionId) && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={clearChapterDraft}
-                      disabled={isSaving}
-                      className="sm:w-auto"
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Abbrechen
-                    </Button>
-                  )}
+                {changingStartSectionId && (
                   <Button
                     type="button"
-                    onClick={() => openCreateChapter()}
-                    disabled={!activeEndFilename || Boolean(changingStartSectionId) || isSaving}
+                    variant="outline"
+                    onClick={clearChapterDraft}
+                    disabled={isSaving}
                     className="sm:w-auto"
                   >
-                    <FolderPlus className="w-4 h-4 mr-2" />
-                    Kapitel bis hier erstellen
+                    <X className="w-4 h-4 mr-2" />
+                    Startpunkt ändern abbrechen
                   </Button>
-                </div>
+                )}
               </div>
 
               {chapterPanelOpen && (
                 <form
                   onSubmit={handleChapterSubmit}
-                  className="mt-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.5fr)_auto] gap-4 items-end rounded-lg border border-border bg-background p-4"
+                  className="mt-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-4 items-end rounded-lg border border-border bg-background p-4"
                 >
                   <div className="space-y-2">
                     <Label htmlFor="chapter-title">Kapitelname</Label>
@@ -808,36 +778,28 @@ const ImageManager = () => {
                       value={chapterDraft.sectionTitle}
                       onChange={(e) => setChapterDraft(prev => ({ ...prev, sectionTitle: e.target.value }))}
                       placeholder="Getting Ready"
+                      className="h-12"
                       autoFocus
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="chapter-description">Beschreibung</Label>
+                    <Label htmlFor="chapter-description">Beschreibung (optional)</Label>
                     <Textarea
                       id="chapter-description"
                       value={chapterDraft.sectionDescription}
                       onChange={(e) => setChapterDraft(prev => ({ ...prev, sectionDescription: e.target.value }))}
                       placeholder="Optional"
-                      className="min-h-10"
+                      className="min-h-12 resize-none"
                     />
                   </div>
-                  <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
-                    <label className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-                      Sichtbar
-                      <Switch
-                        checked={chapterDraft.isVisible}
-                        onCheckedChange={(checked) => setChapterDraft(prev => ({ ...prev, isVisible: checked }))}
-                      />
-                    </label>
-                    <div className="flex gap-2">
-                      <Button type="button" variant="outline" onClick={clearChapterDraft} disabled={isSaving}>
-                        Abbrechen
-                      </Button>
-                      <Button type="submit" disabled={isSaving}>
-                        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                        {editingSectionId ? 'Speichern' : 'Erstellen'}
-                      </Button>
-                    </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={clearChapterDraft} disabled={isSaving}>
+                      Abbrechen
+                    </Button>
+                    <Button type="submit" disabled={isSaving}>
+                      {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                      {editingSectionId ? 'Speichern' : 'Erstellen'}
+                    </Button>
                   </div>
                 </form>
               )}
@@ -875,12 +837,10 @@ const ImageManager = () => {
                               index={imageIndex ?? 0}
                               isHero={heroImageIndex === imageIndex}
                               isCover={coverImageIndex === imageIndex}
-                              isActiveStart={getFilenameKey(activeEndFilename) === getFilenameKey(img.filename)}
+                              isActiveStart={false}
                               isChapterStart={false}
                               chapterTitle={chapterTitleByFilename.get(getFilenameKey(img.filename))}
                               chapterActionLabel="Bis hier"
-                              selectLabel="Als Endbild auswählen"
-                              onSelectStart={handleImageCardClick}
                               onCreateChapterFrom={openCreateChapter}
                               onDelete={() => setDeleteModal({ open: true, index: imageIndex })}
                               onSetHero={(i) => setHeroImageIndex(i)}
@@ -920,18 +880,10 @@ const ImageManager = () => {
                           <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                             Start
                           </span>
-                          {section.isVisible === false && (
-                            <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                              ausgeblendet
-                            </span>
-                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {sectionImages.length} Bild{sectionImages.length === 1 ? '' : 'er'}
                           {section.sectionDescription ? ` · ${section.sectionDescription}` : ''}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          Startbild: {section.startFilename}
                         </p>
                         </div>
                       </div>
@@ -961,10 +913,6 @@ const ImageManager = () => {
                           <Pencil className="w-4 h-4 mr-2" />
                           Umbenennen
                         </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => handleToggleSectionVisibility(section.id)} disabled={isSaving}>
-                          {section.isVisible === false ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                          {section.isVisible === false ? 'Einblenden' : 'Ausblenden'}
-                        </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => handleDeleteSection(section.id)} disabled={isSaving} className="text-destructive border-destructive hover:bg-destructive/10">
                           <Trash2 className="w-4 h-4 mr-2" />
                           Löschen
@@ -987,7 +935,6 @@ const ImageManager = () => {
 	                            isChapterStart={startMarkerFilenames.has(getFilenameKey(img.filename))}
 	                            chapterTitle={section.sectionTitle}
 	                            chapterActionLabel="Kapitel"
-	                            selectLabel="Bild auswählen"
 	                            onSelectStart={changingStartSectionId ? handleImageCardClick : undefined}
 	                            onDelete={() => setDeleteModal({ open: true, index: imageIndex })}
 	                            onSetHero={(i) => setHeroImageIndex(i)}

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Star, Image as ImageIcon, Maximize, Columns, Flag, FolderPlus } from 'lucide-react';
+import { Trash2, Star, Image as ImageIcon, Maximize, Columns, FolderPlus } from 'lucide-react';
 
 const ImageGridCard = ({
   image,
@@ -12,7 +12,6 @@ const ImageGridCard = ({
   isChapterStart = false,
   chapterTitle,
   chapterActionLabel = 'Kapitel',
-  selectLabel = 'Bild auswählen',
   onDelete,
   onSetHero,
   onSetCover,
@@ -26,15 +25,16 @@ const ImageGridCard = ({
 
   return (
     <div
-      className={`image-card group relative cursor-pointer ${isActiveStart ? 'image-card-selected' : ''}`}
+      className={`image-card group relative ${onSelectStart ? 'cursor-pointer' : 'cursor-default'} ${isActiveStart ? 'image-card-selected' : ''}`}
       onClick={() => onSelectStart?.(image.filename)}
-      role="button"
-      tabIndex={0}
-      aria-pressed={isActiveStart}
+      role={onSelectStart ? 'button' : undefined}
+      tabIndex={onSelectStart ? 0 : undefined}
+      aria-pressed={onSelectStart ? isActiveStart : undefined}
       onKeyDown={(e) => {
+        if (!onSelectStart) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onSelectStart?.(image.filename);
+          onSelectStart(image.filename);
         }
       }}
     >
@@ -57,24 +57,6 @@ const ImageGridCard = ({
         <span className="text-xs text-center px-2">{image.filename || 'No URL'}</span>
       </div>
 
-      {onSelectStart && (
-        <button
-          type="button"
-          className={`absolute top-2 right-2 z-30 h-9 w-9 rounded-full border flex items-center justify-center transition-all ${
-            isActiveStart
-              ? 'bg-primary text-primary-foreground border-primary shadow-lg'
-              : 'bg-white/90 text-primary border-white/70 hover:bg-white'
-          }`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectStart(image.filename);
-          }}
-          aria-label={isActiveStart ? 'Bild ausgewählt' : selectLabel}
-        >
-          <Flag className="w-4 h-4" />
-        </button>
-      )}
-      
       {/* Orientation Badge */}
       <div className="absolute top-2 left-2 z-20">
         <span className="bg-black/60 text-white backdrop-blur-sm px-2 py-1 rounded text-[10px] font-medium uppercase tracking-wider flex items-center gap-1 shadow-sm">
