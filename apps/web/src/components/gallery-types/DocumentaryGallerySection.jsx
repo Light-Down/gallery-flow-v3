@@ -1,32 +1,68 @@
 
 import React from 'react';
 import { getImagesBySection } from '@/utils/galleryHelpers.js';
-import { motion } from 'framer-motion';
-import { GalleryImageTile, ParallaxGalleryImageTile } from '@/components/gallery-types/GalleryImageTile.jsx';
-import { chunkByPattern, getAspectClass, getImageOrientation } from '@/components/gallery-types/galleryLayoutUtils.js';
+import { motion, useReducedMotion } from 'framer-motion';
+import { getImageAlt, getImageKey, getImageOrientation, getImageUrl } from '@/components/gallery-types/galleryLayoutUtils.js';
+
+const getDocumentaryCellClass = (image) => {
+  const orientation = getImageOrientation(image);
+
+  if (orientation === 'landscape') {
+    return 'col-span-2 sm:col-span-2 md:col-span-3 xl:col-span-4 row-span-2';
+  }
+
+  if (orientation === 'square') {
+    return 'col-span-1 sm:col-span-2 md:col-span-2 xl:col-span-2 row-span-2';
+  }
+
+  return 'col-span-1 sm:col-span-1 md:col-span-2 xl:col-span-2 row-span-3';
+};
+
+const DocumentaryTile = React.memo(({ image, index, onImageClick }) => {
+  const url = getImageUrl(image);
+  const shouldReduceMotion = useReducedMotion();
+  const motionProps = shouldReduceMotion
+    ? { initial: false }
+    : {
+        initial: { opacity: 0, y: 18 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, margin: '0px 0px -60px 0px' },
+        transition: { duration: 0.45, delay: (index % 8) * 0.025, ease: [0.16, 1, 0.3, 1] }
+      };
+
+  return (
+    <motion.button
+      type="button"
+      {...motionProps}
+      className={`group relative block h-full min-h-0 w-full cursor-pointer overflow-hidden border border-black/5 bg-stone-100 text-left shadow-sm transition-colors duration-200 hover:bg-stone-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-white/10 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${getDocumentaryCellClass(image)}`}
+      onClick={() => onImageClick(url)}
+    >
+      <img
+        src={url}
+        alt={getImageAlt(image, `Documentary image ${index + 1}`)}
+        loading="lazy"
+        className="h-full w-full object-contain p-1.5 transition-opacity duration-200 group-hover:opacity-95 md:p-2"
+      />
+    </motion.button>
+  );
+});
 
 const DocumentaryGallerySection = ({ gallery, section, onImageClick, favorites, onToggleFavorite }) => {
   const images = getImagesBySection(gallery, section);
-  const chunks = chunkByPattern(images, [
-    { type: 'sequence', count: 3 },
-    { type: 'wide', count: 1 },
-    { type: 'pair', count: 2 },
-    { type: 'sequence', count: 3 }
-  ]);
 
   if (!images || images.length === 0) return null;
 
   return (
-    <section className="py-20 md:py-28 px-3 sm:px-5 lg:px-8 w-full bg-[#FAFAFA] dark:bg-[#0a0a0a]">
-      <div className="max-w-[142rem] mx-auto">
+    <section className="w-full bg-[#FAFAFA] px-3 py-16 dark:bg-[#0a0a0a] sm:px-5 md:py-20 lg:px-8">
+      <div className="mx-auto max-w-[138rem]">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-14 flex items-end justify-between gap-6 border-b border-foreground/10 pb-5"
+          className="mb-8 flex items-end justify-between gap-6 border-b border-foreground/10 pb-4 md:mb-10"
         >
-          <h2 className="text-3xl md:text-5xl font-minimal font-semibold text-foreground tracking-tight uppercase">
+          <h2 className="font-minimal text-2xl font-semibold uppercase tracking-tight text-foreground md:text-4xl">
             {section}
           </h2>
           <span className="hidden sm:block text-xs uppercase tracking-[0.24em] text-muted-foreground">
@@ -34,60 +70,17 @@ const DocumentaryGallerySection = ({ gallery, section, onImageClick, favorites, 
           </span>
         </motion.div>
 
-        <div className="space-y-10 md:space-y-16">
-          {chunks.map((chunk, chunkIndex) => {
-            if (chunk.type === 'wide') {
-              return (
-                <ParallaxGalleryImageTile
-                  key={`${chunk.type}-${chunkIndex}`}
-                  image={chunk.items[0]}
-                  index={chunkIndex}
-                  onImageClick={onImageClick}
-                  className={`${getImageOrientation(chunk.items[0]) === 'portrait' ? 'md:w-[58%] mx-auto aspect-[3/4]' : 'aspect-[16/8]'} rounded-none`}
-                  imageClassName="grayscale-[8%] group-hover:grayscale-0"
-                  overlayClassName="bg-black/0 group-hover:bg-black/10 transition-colors duration-300"
-                  parallax={[-12, 12]}
-                />
-              );
-            }
-
-            if (chunk.type === 'pair') {
-              return (
-                <div key={`${chunk.type}-${chunkIndex}`} className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-5 items-start">
-                  {chunk.items.map((image, idx) => (
-                    <div key={idx} className={idx === 0 ? 'md:col-span-7' : 'md:col-span-5 md:mt-12'}>
-                      <GalleryImageTile
-                        image={image}
-                        index={idx}
-                        onImageClick={onImageClick}
-                        className={`${getAspectClass(image, 'aspect-[4/5]')} rounded-none`}
-                        imageClassName="grayscale-[10%] group-hover:grayscale-0"
-                      />
-                    </div>
-                  ))}
-                </div>
-              );
-            }
-
-            return (
-              <div key={`${chunk.type}-${chunkIndex}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 md:gap-5">
-                {chunk.items.map((image, idx) => (
-                  <div
-                    key={idx}
-                    className={idx === 0 ? 'lg:col-span-5' : idx === 1 ? 'lg:col-span-3' : 'lg:col-span-4'}
-                  >
-                    <GalleryImageTile
-                      image={image}
-                      index={idx}
-                      onImageClick={onImageClick}
-                      className={`${getAspectClass(image, idx === 1 ? 'aspect-square' : 'aspect-[3/4]')} rounded-none`}
-                      imageClassName="grayscale-[12%] group-hover:grayscale-0"
-                    />
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+        <div
+          className="grid auto-rows-[clamp(5.25rem,8vw,8.5rem)] grid-cols-2 gap-2 [grid-auto-flow:dense] sm:grid-cols-4 md:grid-cols-6 md:gap-3 xl:grid-cols-8"
+        >
+          {images.map((image, index) => (
+            <DocumentaryTile
+              key={getImageKey(image, `${section}-${index}`)}
+              image={image}
+              index={index}
+              onImageClick={onImageClick}
+            />
+          ))}
         </div>
       </div>
     </section>

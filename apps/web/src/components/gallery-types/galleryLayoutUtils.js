@@ -12,7 +12,18 @@ export const getImageAlt = (image, fallback) => {
 
 export const getImageOrientation = (image) => {
   if (typeof image === 'string') return 'portrait';
-  return image?.orientation || 'portrait';
+  if (image?.orientation) return image.orientation;
+
+  const width = Number(image?.width || 0);
+  const height = Number(image?.height || 0);
+  if (width > 0 && height > 0) {
+    const ratio = width / height;
+    if (ratio > 1.1) return 'landscape';
+    if (ratio < 0.9) return 'portrait';
+    return 'square';
+  }
+
+  return 'portrait';
 };
 
 export const getSectionDetails = (gallery, sectionTitle) => {
