@@ -10,7 +10,6 @@ const ImageGridCard = ({
   isCover,
   isActiveStart = false,
   isChapterStart = false,
-  chapterTitle,
   chapterActionLabel = 'Kapitel',
   onDelete,
   onSetHero,
@@ -67,14 +66,6 @@ const ImageGridCard = ({
         </span>
       </div>
 
-      {chapterTitle && (
-        <div className="absolute left-2 bottom-2 z-20 max-w-[calc(100%-1rem)]">
-          <span className="bg-black/60 text-white backdrop-blur-sm px-2 py-1 rounded text-[10px] font-medium uppercase tracking-wider shadow-sm truncate block">
-            {chapterTitle}
-          </span>
-        </div>
-      )}
-
       {isChapterStart && (
         <div className="absolute left-1/2 top-2 z-20 max-w-[calc(100%-6rem)] -translate-x-1/2">
           <span className="bg-primary text-primary-foreground px-2 py-1 rounded text-[10px] font-medium uppercase tracking-wider shadow-sm truncate block">
@@ -96,24 +87,28 @@ const ImageGridCard = ({
         </div>
         
         <div className="flex justify-between items-end w-full gap-2">
-          <div className="flex gap-2">
+          <div className="flex flex-col items-start gap-2">
             <Button 
-              size="icon" 
+              size="sm" 
               variant={isHero ? "default" : "secondary"} 
-              className={`h-8 w-8 shadow-sm ${isHero ? 'bg-primary text-primary-foreground' : 'bg-white/20 text-white backdrop-blur hover:bg-white/40'}`} 
+              className={`h-8 px-2 text-[11px] shadow-sm ${isHero ? 'bg-primary text-primary-foreground' : 'bg-white/20 text-white backdrop-blur hover:bg-white/40'}`} 
               onClick={(e) => { e.stopPropagation(); onSetHero(index); }} 
-              title="Set as Hero"
+              title="Galerie-Einstieg festlegen"
+              aria-label="Galerie-Einstieg festlegen"
             >
-              <Star className="w-4 h-4" />
+              <Star className="w-3.5 h-3.5 mr-1.5" />
+              Einstieg
             </Button>
             <Button 
-              size="icon" 
+              size="sm" 
               variant={isCover ? "default" : "secondary"} 
-              className={`h-8 w-8 shadow-sm ${isCover ? 'bg-primary text-primary-foreground' : 'bg-white/20 text-white backdrop-blur hover:bg-white/40'}`} 
+              className={`h-8 px-2 text-[11px] shadow-sm ${isCover ? 'bg-primary text-primary-foreground' : 'bg-white/20 text-white backdrop-blur hover:bg-white/40'}`} 
               onClick={(e) => { e.stopPropagation(); onSetCover(index); }} 
-              title="Set as Cover"
+              title="Vorschau-Bild festlegen"
+              aria-label="Vorschau-Bild festlegen"
             >
-              <ImageIcon className="w-4 h-4" />
+              <ImageIcon className="w-3.5 h-3.5 mr-1.5" />
+              Vorschau
             </Button>
           </div>
           {onCreateChapterFrom && (

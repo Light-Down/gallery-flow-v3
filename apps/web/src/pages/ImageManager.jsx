@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { ArrowLeft, Save, Loader2, Image as ImageIcon, AlertTriangle, Trash2, X, Pencil, ChevronUp, ChevronDown, UploadCloud, Flag } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Image as ImageIcon, AlertTriangle, Trash2, X, Pencil, ChevronUp, ChevronDown, UploadCloud, Flag, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import pb from '@/lib/pocketbaseClient.js';
-import { naturalSort, normalizeGalleryImages } from '@/utils/galleryHelpers.js';
+import { detectImageOrientation, naturalSort, normalizeGalleryImages } from '@/utils/galleryHelpers.js';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,6 +123,7 @@ const ImageManager = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRepairingMetadata, setIsRepairingMetadata] = useState(false);
   
   const [deleteModal, setDeleteModal] = useState({ open: false, index: null });
   const [isDeleting, setIsDeleting] = useState(false);
@@ -191,16 +192,6 @@ const ImageManager = () => {
       section.imageFilenames.forEach(filename => keys.add(getFilenameKey(filename)));
     });
     return keys;
-  }, [sections]);
-
-  const chapterTitleByFilename = useMemo(() => {
-    const map = new Map();
-    sections.forEach(section => {
-      section.imageFilenames.forEach(filename => {
-        map.set(getFilenameKey(filename), section.sectionTitle);
-      });
-    });
-    return map;
   }, [sections]);
 
   const startMarkerFilenames = useMemo(() => {
@@ -521,6 +512,73 @@ const ImageManager = () => {
     }
   };
 
+  const measureImageDimensions = (url) => new Promise((resolve) => {
+    if (!url) {
+      resolve({ width: 0, height: 0 });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve({ width: 0, height: 0 });
+    img.src = url;
+  });
+
+  const handleRepairImageMetadata = async () => {
+    const imagesToRepair = images.filter(image => !image.width || !image.height || !image.orientation);
+
+    if (imagesToRepair.length === 0) {
+      toast.info('Alle Bildformate sind bereits gespeichert');
+      return;
+    }
+
+    setIsRepairingMetadata(true);
+    try {
+      const repairedByFilename = new Map();
+      const batchSize = 6;
+
+      for (let index = 0; index < imagesToRepair.length; index += batchSize) {
+        const batch = imagesToRepair.slice(index, index + batchSize);
+        const results = await Promise.all(batch.map(async (image) => {
+          const dimensions = await measureImageDimensions(image.url);
+          return {
+            ...image,
+            width: dimensions.width || image.width || 0,
+            height: dimensions.height || image.height || 0,
+            orientation: dimensions.width && dimensions.height
+              ? detectImageOrientation(dimensions.width, dimensions.height)
+              : image.orientation || 'portrait'
+          };
+        }));
+
+        results.forEach(image => {
+          repairedByFilename.set(getFilenameKey(image.filename), image);
+        });
+      }
+
+      const repairedImages = images.map(image => repairedByFilename.get(getFilenameKey(image.filename)) || image);
+
+      await pb.collection('galleries').update(gallery.id, {
+        images: repairedImages,
+        sections: buildSectionsForSave(sections),
+        imageCount: repairedImages.length
+      }, { $autoCancel: false });
+
+      setImages(repairedImages);
+      setGallery(prev => ({
+        ...prev,
+        images: repairedImages,
+        imageCount: repairedImages.length
+      }));
+      toast.success(`${repairedByFilename.size} Bildformat${repairedByFilename.size === 1 ? '' : 'e'} repariert`);
+    } catch (err) {
+      toast.error('Bildformate konnten nicht repariert werden');
+      console.error(err);
+    } finally {
+      setIsRepairingMetadata(false);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     const idx = deleteModal.index;
     if (idx === null) return;
@@ -637,6 +695,7 @@ const ImageManager = () => {
 
   const missingDataImages = images.filter(img => !img.url || !img.filename);
   const missingDataWarning = missingDataImages.length > 0;
+  const imagesMissingMetadataCount = images.filter(image => !image.width || !image.height || !image.orientation).length;
   const changingStartSection = sections.find(section => section.id === changingStartSectionId);
 
   return (
@@ -718,16 +777,30 @@ const ImageManager = () => {
                   Neue Bilder hochladen. Die Kapitel darunter bleiben automatisch in der Reihenfolge der Startbilder.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setUploadExpanded(prev => !prev)}
-                disabled={isUploading}
-                className="sm:w-auto"
-              >
-                <UploadCloud className="w-4 h-4 mr-2" />
-                {uploadExpanded ? 'Upload ausblenden' : 'Upload öffnen'}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                {imagesMissingMetadataCount > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRepairImageMetadata}
+                    disabled={isUploading || isSaving || isRepairingMetadata}
+                    className="sm:w-auto"
+                  >
+                    {isRepairingMetadata ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    Formate reparieren ({imagesMissingMetadataCount})
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setUploadExpanded(prev => !prev)}
+                  disabled={isUploading}
+                  className="sm:w-auto"
+                >
+                  <UploadCloud className="w-4 h-4 mr-2" />
+                  {uploadExpanded ? 'Upload ausblenden' : 'Upload öffnen'}
+                </Button>
+              </div>
             </div>
             {uploadExpanded && (
               <div className="p-4 sm:p-5">
@@ -839,7 +912,6 @@ const ImageManager = () => {
                               isCover={coverImageIndex === imageIndex}
                               isActiveStart={false}
                               isChapterStart={false}
-                              chapterTitle={chapterTitleByFilename.get(getFilenameKey(img.filename))}
                               chapterActionLabel="Bis hier"
                               onCreateChapterFrom={openCreateChapter}
                               onDelete={() => setDeleteModal({ open: true, index: imageIndex })}
@@ -933,7 +1005,6 @@ const ImageManager = () => {
 	                            isCover={coverImageIndex === imageIndex}
 	                            isActiveStart={getFilenameKey(activeEndFilename) === getFilenameKey(img.filename)}
 	                            isChapterStart={startMarkerFilenames.has(getFilenameKey(img.filename))}
-	                            chapterTitle={section.sectionTitle}
 	                            chapterActionLabel="Kapitel"
 	                            onSelectStart={changingStartSectionId ? handleImageCardClick : undefined}
 	                            onDelete={() => setDeleteModal({ open: true, index: imageIndex })}
