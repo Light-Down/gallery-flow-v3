@@ -3,18 +3,176 @@ import React from 'react';
 import { getImagesBySection } from '@/utils/galleryHelpers.js';
 import { motion } from 'framer-motion';
 import { GalleryImageTile, ParallaxGalleryImageTile } from '@/components/gallery-types/GalleryImageTile.jsx';
-import { chunkByPattern, getAspectClass, getImageOrientation, getSectionDetails } from '@/components/gallery-types/galleryLayoutUtils.js';
+import { getAspectClass, getImageKey, getImageOrientation, getSectionDetails } from '@/components/gallery-types/galleryLayoutUtils.js';
+
+const GROUP_SIZE = 6;
+const DOMINANCE_THRESHOLD = 0.8;
+
+const LANDSCAPE_PATTERNS = {
+  single: [
+    { className: 'md:col-span-10 md:col-start-2', frameClass: 'aspect-[16/9] md:aspect-[21/9]', parallax: [-26, 26], featured: true, preferred: ['landscape', 'square'] }
+  ],
+  pair: [
+    { className: 'md:col-span-6', frameClass: 'aspect-[16/10]', parallax: [-18, 18], preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-6 md:mt-20', frameClass: 'aspect-[16/10]', parallax: [20, -18], preferred: ['landscape', 'square'] }
+  ],
+  trio: [
+    { className: 'md:col-span-12', frameClass: 'aspect-[21/9]', parallax: [-22, 22], featured: true, preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-6', frameClass: 'aspect-[16/10]', parallax: [-14, 18], preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-6 md:mt-16', frameClass: 'aspect-[16/10]', parallax: [18, -14], preferred: ['landscape', 'square'] }
+  ],
+  series: [
+    { className: 'md:col-span-12', frameClass: 'aspect-[21/9]', parallax: [-22, 22], featured: true, preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-6', frameClass: 'aspect-[16/10]', parallax: [-14, 18], preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-6 md:mt-16', frameClass: 'aspect-[16/10]', parallax: [18, -14], preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-8 md:col-start-3', frameClass: 'aspect-[16/9]', parallax: [-18, 18], featured: true, preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-6', frameClass: 'aspect-[16/10]', preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-6 md:mt-14', frameClass: 'aspect-[16/10]', preferred: ['landscape', 'square'] }
+  ]
+};
+
+const PORTRAIT_PATTERNS = {
+  single: [
+    { className: 'md:col-span-4 md:col-start-5', frameClass: 'aspect-[3/4]', parallax: [-22, 22], featured: true, preferred: ['portrait', 'square'] }
+  ],
+  pair: [
+    { className: 'md:col-span-5 md:col-start-2', frameClass: 'aspect-[3/4]', parallax: [-18, 24], preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-5 md:col-start-7 md:mt-24', frameClass: 'aspect-[3/4]', parallax: [26, -18], preferred: ['portrait', 'square'] }
+  ],
+  series: [
+    { className: 'md:col-span-4', frameClass: 'aspect-[3/4]', preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-4 md:mt-16', frameClass: 'aspect-[3/4]', preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-4', frameClass: 'aspect-[3/4]', preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-5 md:col-start-2', frameClass: 'aspect-[4/5]', parallax: [-16, 20], preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-5 md:col-start-7 md:mt-20', frameClass: 'aspect-[4/5]', parallax: [22, -16], preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-4 md:col-start-5', frameClass: 'aspect-[3/4]', preferred: ['portrait', 'square'] }
+  ]
+};
+
+const MIXED_PATTERNS = {
+  story: [
+    { className: 'md:col-span-7', frameFallback: 'aspect-[4/5]', parallax: [-18, 24], preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-5 md:mt-28', frameFallback: 'aspect-[3/4]', parallax: [30, -18], preferred: ['landscape', 'portrait'] },
+    { className: 'md:col-span-12', frameType: 'feature', parallax: [-26, 26], featured: true, preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-4', frameFallback: 'aspect-[4/5]', preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-5 md:mb-20', frameFallback: 'aspect-[4/5]', preferred: ['landscape', 'portrait'] },
+    { className: 'md:col-span-3', frameFallback: 'aspect-[4/5]', preferred: ['portrait', 'square'] }
+  ],
+  balanced: [
+    { className: 'md:col-span-6', frameFallback: 'aspect-[4/5]', parallax: [-18, 20], preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-6 md:mt-20', frameFallback: 'aspect-[16/10]', parallax: [20, -18], preferred: ['landscape', 'square'] },
+    { className: 'md:col-span-8 md:col-start-3', frameType: 'feature', parallax: [-20, 20], featured: true, preferred: ['landscape', 'portrait'] },
+    { className: 'md:col-span-4', frameFallback: 'aspect-[4/5]', preferred: ['portrait', 'square'] },
+    { className: 'md:col-span-4 md:mt-16', frameFallback: 'aspect-[4/5]', preferred: ['square', 'portrait'] },
+    { className: 'md:col-span-4', frameFallback: 'aspect-[16/10]', preferred: ['landscape', 'portrait'] }
+  ]
+};
+
+const getOrientationCounts = (images) => images.reduce((acc, image) => {
+  const orientation = getImageOrientation(image);
+  acc[orientation] = (acc[orientation] || 0) + 1;
+  return acc;
+}, { landscape: 0, portrait: 0, square: 0 });
+
+const getLayoutVariant = (images) => {
+  const counts = getOrientationCounts(images);
+  const nonSquareCount = counts.landscape + counts.portrait;
+
+  if (nonSquareCount > 0) {
+    if (counts.landscape / nonSquareCount >= DOMINANCE_THRESHOLD) return 'landscapeDominant';
+    if (counts.portrait / nonSquareCount >= DOMINANCE_THRESHOLD) return 'portraitDominant';
+  }
+
+  return 'mixed';
+};
+
+const getPatternForGroup = (images, variant) => {
+  if (variant === 'landscapeDominant') {
+    if (images.length === 1) return LANDSCAPE_PATTERNS.single;
+    if (images.length === 2) return LANDSCAPE_PATTERNS.pair;
+    if (images.length === 3) return LANDSCAPE_PATTERNS.trio;
+    return LANDSCAPE_PATTERNS.series;
+  }
+
+  if (variant === 'portraitDominant') {
+    if (images.length === 1) return PORTRAIT_PATTERNS.single;
+    if (images.length === 2) return PORTRAIT_PATTERNS.pair;
+    return PORTRAIT_PATTERNS.series;
+  }
+
+  const counts = getOrientationCounts(images);
+  if (counts.landscape >= 2 && counts.portrait >= 2) return MIXED_PATTERNS.story;
+  return MIXED_PATTERNS.balanced;
+};
+
+const orderAdaptiveImages = (images, pattern) => {
+  const remaining = [...images];
+
+  return pattern.slice(0, images.length).map((slot) => {
+    const matchIndex = remaining.findIndex((image) => slot.preferred.includes(getImageOrientation(image)));
+    const selectedIndex = matchIndex >= 0 ? matchIndex : 0;
+    const [selected] = remaining.splice(selectedIndex, 1);
+    return selected;
+  });
+};
+
+const buildEditorialGroups = (images, compositionMode) => {
+  const groups = [];
+
+  for (let index = 0; index < images.length; index += GROUP_SIZE) {
+    const chunk = images.slice(index, index + GROUP_SIZE);
+    const variant = getLayoutVariant(chunk);
+    const pattern = getPatternForGroup(chunk, variant);
+    const orderedImages = compositionMode === 'chronological'
+      ? chunk
+      : orderAdaptiveImages(chunk, pattern);
+
+    groups.push({
+      id: `${variant}-${index}`,
+      images: orderedImages,
+      pattern,
+      variant
+    });
+  }
+
+  return groups;
+};
+
+const getEditorialFrameClass = (image, slot) => {
+  if (slot.frameClass) return slot.frameClass;
+
+  if (slot.frameType === 'feature') {
+    return getImageOrientation(image) === 'landscape'
+      ? 'aspect-[16/9] md:aspect-[21/9]'
+      : 'aspect-[3/4] md:w-[58%] md:mx-auto';
+  }
+
+  return getAspectClass(image, slot.frameFallback || 'aspect-[4/5]');
+};
+
+const EditorialImageSlot = React.memo(({ image, index, slot, onImageClick }) => {
+  const Tile = slot.parallax ? ParallaxGalleryImageTile : GalleryImageTile;
+  const frameClass = getEditorialFrameClass(image, slot);
+
+  return (
+    <div className={slot.className}>
+      <Tile
+        image={image}
+        index={index}
+        onImageClick={onImageClick}
+        className={`${frameClass} rounded-sm ${slot.featured ? 'shadow-xl' : ''}`}
+        imageClassName="object-center"
+        parallax={slot.parallax}
+      />
+    </div>
+  );
+});
 
 const EditorialGallerySection = ({ gallery, section, onImageClick, favorites, onToggleFavorite }) => {
   const images = getImagesBySection(gallery, section);
   const sectionDetails = getSectionDetails(gallery, section);
-  const chunks = chunkByPattern(images, [
-    { type: 'feature', count: 1 },
-    { type: 'diptych', count: 2 },
-    { type: 'solo', count: 1 },
-    { type: 'triptych', count: 3 },
-    { type: 'wide', count: 1 }
-  ]);
+  const compositionMode = sectionDetails.compositionMode === 'chronological' ? 'chronological' : 'adaptive';
+  const groups = buildEditorialGroups(images, compositionMode);
 
   if (!images || images.length === 0) return null;
 
@@ -41,71 +199,22 @@ const EditorialGallerySection = ({ gallery, section, onImageClick, favorites, on
       </motion.div>
 
       <div className="space-y-20 md:space-y-32">
-        {chunks.map((chunk, chunkIndex) => {
-          if (chunk.type === 'feature' || chunk.type === 'wide') {
-            const image = chunk.items[0];
-            const isLandscape = getImageOrientation(image) === 'landscape';
-
-            return (
-              <div key={`${chunk.type}-${chunkIndex}`} className={isLandscape ? 'w-full' : 'flex justify-center'}>
-                <ParallaxGalleryImageTile
-                  image={image}
-                  index={chunkIndex}
-                  onImageClick={onImageClick}
-                  className={`${isLandscape ? 'aspect-[16/9] md:aspect-[21/9]' : 'w-full md:w-[58%] aspect-[3/4]'} rounded-sm shadow-xl`}
-                  imageClassName="object-center"
-                  parallax={chunk.type === 'wide' ? [-18, 18] : [-26, 26]}
-                />
-              </div>
-            );
-          }
-
-          if (chunk.type === 'diptych') {
-            return (
-              <div key={`${chunk.type}-${chunkIndex}`} className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
-                {chunk.items.map((image, idx) => (
-                  <div key={idx} className={`${idx === 0 ? 'md:col-span-7' : 'md:col-span-5 md:mt-28'}`}>
-                    <ParallaxGalleryImageTile
-                      image={image}
-                      index={idx}
-                      onImageClick={onImageClick}
-                      className={`${getAspectClass(image)} rounded-sm`}
-                      parallax={idx === 0 ? [-18, 24] : [30, -18]}
-                    />
-                  </div>
-                ))}
-              </div>
-            );
-          }
-
-          if (chunk.type === 'triptych') {
-            return (
-              <div key={`${chunk.type}-${chunkIndex}`} className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-10 items-end">
-                {chunk.items.map((image, idx) => (
-                  <div key={idx} className={idx === 1 ? 'md:col-span-5 md:mb-20' : idx === 2 ? 'md:col-span-3' : 'md:col-span-4'}>
-                    <GalleryImageTile
-                      image={image}
-                      index={idx}
-                      onImageClick={onImageClick}
-                      className={`${getAspectClass(image, 'aspect-[4/5]')} rounded-sm`}
-                    />
-                  </div>
-                ))}
-              </div>
-            );
-          }
-
-          return (
-            <div key={`${chunk.type}-${chunkIndex}`} className="flex justify-center py-8 md:py-16">
-              <GalleryImageTile
-                image={chunk.items[0]}
-                index={chunkIndex}
+        {groups.map((group, groupIndex) => (
+          <div
+            key={group.id}
+            className="grid grid-cols-1 gap-8 md:grid-cols-12 md:gap-12 md:items-start"
+          >
+            {group.images.map((image, imageIndex) => (
+              <EditorialImageSlot
+                key={getImageKey(image, `${section}-${groupIndex}-${imageIndex}`)}
+                image={image}
+                index={(groupIndex * GROUP_SIZE) + imageIndex}
+                slot={group.pattern[imageIndex] || MIXED_PATTERNS.balanced[imageIndex % MIXED_PATTERNS.balanced.length]}
                 onImageClick={onImageClick}
-                className="w-full md:w-[46%] aspect-[3/4] rounded-sm"
               />
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        ))}
       </div>
     </section>
   );
