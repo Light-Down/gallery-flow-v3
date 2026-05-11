@@ -5,31 +5,57 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { getImageAlt, getImageKey, getImageOrientation, getImageUrl, getSectionDetails } from '@/components/gallery-types/galleryLayoutUtils.js';
 
 const GROUP_SIZE = 6;
+const DOMINANCE_THRESHOLD = 0.8;
 
-const SLOT_PATTERNS = {
-  storyMix: [
+const LANDSCAPE_PATTERNS = {
+  single: [
+    { className: 'sm:col-span-6 md:col-span-10 md:col-start-2 xl:col-span-9 xl:col-start-2', preferred: ['landscape', 'square'] }
+  ],
+  pair: [
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-7', preferred: ['landscape', 'square'] }
+  ],
+  trio: [
+    { className: 'sm:col-span-6 md:col-span-10 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-7', preferred: ['landscape', 'square'] }
+  ],
+  series: [
+    { className: 'sm:col-span-6 md:col-span-10 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-7', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-6 md:col-span-8 md:col-start-3', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-5 md:col-start-7', preferred: ['landscape', 'square'] }
+  ]
+};
+
+const PORTRAIT_PATTERNS = {
+  single: [
+    { className: 'sm:col-span-4 sm:col-start-2 md:col-span-4 md:col-start-5', preferred: ['portrait', 'square'] }
+  ],
+  pair: [
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-3', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-7 md:mt-10', preferred: ['portrait', 'square'] }
+  ],
+  series: [
+    { className: 'sm:col-span-2 md:col-span-4', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-2 md:col-span-4 md:mt-10', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-2 md:col-span-4', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-3', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-3 md:col-span-4 md:col-start-7 md:mt-10', preferred: ['portrait', 'square'] },
+    { className: 'sm:col-span-6 md:col-span-4 md:col-start-5', preferred: ['portrait', 'square'] }
+  ]
+};
+
+const MIXED_PATTERNS = {
+  story: [
     { className: 'sm:col-span-3 md:col-span-3 md:col-start-1', preferred: ['portrait', 'square'] },
     { className: 'sm:col-span-3 md:col-span-3 md:col-start-4 md:mt-16', preferred: ['portrait'] },
     { className: 'sm:col-span-6 md:col-span-6 md:col-start-7', preferred: ['landscape', 'square'] },
     { className: 'sm:col-span-6 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
     { className: 'sm:col-span-3 md:col-span-3 md:col-start-7 md:mt-10', preferred: ['portrait', 'square'] },
     { className: 'sm:col-span-3 md:col-span-3 md:col-start-10 md:mt-10', preferred: ['portrait', 'landscape'] }
-  ],
-  landscapeLead: [
-    { className: 'sm:col-span-6 md:col-span-7 md:col-start-3', preferred: ['landscape'] },
-    { className: 'sm:col-span-3 md:col-span-3 md:col-start-1', preferred: ['portrait', 'square'] },
-    { className: 'sm:col-span-3 md:col-span-3 md:col-start-10', preferred: ['portrait', 'square'] },
-    { className: 'sm:col-span-6 md:col-span-5 md:col-start-4', preferred: ['landscape', 'square'] },
-    { className: 'sm:col-span-3 md:col-span-4 md:col-start-1 md:mt-8', preferred: ['portrait', 'square'] },
-    { className: 'sm:col-span-3 md:col-span-4 md:col-start-9 md:mt-8', preferred: ['landscape', 'portrait'] }
-  ],
-  portraitSeries: [
-    { className: 'sm:col-span-2 md:col-span-3 md:col-start-1', preferred: ['portrait'] },
-    { className: 'sm:col-span-2 md:col-span-3 md:col-start-4 md:mt-10', preferred: ['portrait'] },
-    { className: 'sm:col-span-2 md:col-span-3 md:col-start-7', preferred: ['portrait'] },
-    { className: 'sm:col-span-3 md:col-span-3 md:col-start-10 md:mt-14', preferred: ['portrait', 'square'] },
-    { className: 'sm:col-span-3 md:col-span-5 md:col-start-2', preferred: ['landscape', 'square'] },
-    { className: 'sm:col-span-6 md:col-span-5 md:col-start-7', preferred: ['landscape', 'portrait'] }
   ],
   balanced: [
     { className: 'sm:col-span-3 md:col-span-4 md:col-start-1', preferred: ['portrait', 'square'] },
@@ -41,17 +67,41 @@ const SLOT_PATTERNS = {
   ]
 };
 
-const getLayoutVariant = (images) => {
-  const counts = images.reduce((acc, image) => {
-    const orientation = getImageOrientation(image);
-    acc[orientation] = (acc[orientation] || 0) + 1;
-    return acc;
-  }, {});
+const getOrientationCounts = (images) => images.reduce((acc, image) => {
+  const orientation = getImageOrientation(image);
+  acc[orientation] = (acc[orientation] || 0) + 1;
+  return acc;
+}, { landscape: 0, portrait: 0, square: 0 });
 
-  if ((counts.landscape || 0) >= 2 && (counts.portrait || 0) >= 2) return 'storyMix';
-  if ((counts.landscape || 0) >= 3) return 'landscapeLead';
-  if ((counts.portrait || 0) >= 4) return 'portraitSeries';
-  return 'balanced';
+const getLayoutVariant = (images) => {
+  const counts = getOrientationCounts(images);
+  const nonSquareCount = counts.landscape + counts.portrait;
+
+  if (nonSquareCount > 0) {
+    if (counts.landscape / nonSquareCount >= DOMINANCE_THRESHOLD) return 'landscapeDominant';
+    if (counts.portrait / nonSquareCount >= DOMINANCE_THRESHOLD) return 'portraitDominant';
+  }
+
+  return 'mixed';
+};
+
+const getPatternForGroup = (images, variant) => {
+  if (variant === 'landscapeDominant') {
+    if (images.length === 1) return LANDSCAPE_PATTERNS.single;
+    if (images.length === 2) return LANDSCAPE_PATTERNS.pair;
+    if (images.length === 3) return LANDSCAPE_PATTERNS.trio;
+    return LANDSCAPE_PATTERNS.series;
+  }
+
+  if (variant === 'portraitDominant') {
+    if (images.length === 1) return PORTRAIT_PATTERNS.single;
+    if (images.length === 2) return PORTRAIT_PATTERNS.pair;
+    return PORTRAIT_PATTERNS.series;
+  }
+
+  const counts = getOrientationCounts(images);
+  if (counts.landscape >= 2 && counts.portrait >= 2) return MIXED_PATTERNS.story;
+  return MIXED_PATTERNS.balanced;
 };
 
 const orderAdaptiveImages = (images, pattern) => {
@@ -71,7 +121,7 @@ const buildDocumentaryGroups = (images, compositionMode) => {
   for (let index = 0; index < images.length; index += GROUP_SIZE) {
     const chunk = images.slice(index, index + GROUP_SIZE);
     const variant = getLayoutVariant(chunk);
-    const pattern = SLOT_PATTERNS[variant];
+    const pattern = getPatternForGroup(chunk, variant);
     const orderedImages = compositionMode === 'chronological'
       ? chunk
       : orderAdaptiveImages(chunk, pattern);
@@ -161,7 +211,7 @@ const DocumentaryGallerySection = ({ gallery, section, onImageClick, favorites, 
                   key={getImageKey(image, `${section}-${groupIndex}-${imageIndex}`)}
                   image={image}
                   index={(groupIndex * GROUP_SIZE) + imageIndex}
-                  slot={group.pattern[imageIndex] || SLOT_PATTERNS.balanced[imageIndex % SLOT_PATTERNS.balanced.length]}
+                  slot={group.pattern[imageIndex] || MIXED_PATTERNS.balanced[imageIndex % MIXED_PATTERNS.balanced.length]}
                   onImageClick={onImageClick}
                 />
               ))}
