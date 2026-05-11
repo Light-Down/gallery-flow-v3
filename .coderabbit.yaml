@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  review_details: false
+  commit_status: true
+  fail_commit_status: false
+  collapse_walkthrough: true
+  changed_files_summary: true
+  sequence_diagrams: false
+  estimate_code_review_effort: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  suggested_reviewers: false
+  in_progress_fortune: false
+  poem: false
+  path_filters:
+    - "!dist/**"
+    - "!**/node_modules/**"
+    - "!**/package-lock.json"
+    - "!**/.DS_Store"
+  path_instructions:
+    - path: "apps/web/src/**/*.jsx"
+      instructions: "Focus on React correctness, accessibility, responsive behavior, image rendering, and unnecessary re-renders. Avoid nitpicks about established local UI patterns."
+    - path: "apps/web/src/components/gallery-types/**"
+      instructions: "Pay close attention to no-crop image behavior, portrait/landscape handling, lightbox integration, and mobile layout regressions."
+    - path: "apps/pocketbase/**"
+      instructions: "Focus on PocketBase schema safety, migration compatibility, file access rules, and avoiding exposure of uploaded gallery files."
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+  learnings:
+    scope: "local"
+  issues:
+    scope: "local"
+  pull_requests:
+    scope: "local"

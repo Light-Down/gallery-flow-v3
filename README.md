@@ -1,5 +1,7 @@
 # Gallery Flow V3
 
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Light-Down/gallery-flow-v3?utm_source=oss&utm_medium=github&utm_campaign=Light-Down%2Fgallery-flow-v3&labelColor=171717&color=FF570A&label=CodeRabbit+Reviews)](https://coderabbit.ai)
+
 Gallery Flow V3 is an open-source wedding gallery platform built with React, Vite, and PocketBase. The project focuses on fast admin workflows, stable image rendering, visual chapter creation, and a premium emotional gallery experience for photographers and couples.
 
 ## License
@@ -44,3 +46,5 @@ More deployment notes live in `docs/DEPLOYMENT.md`.
 ## Contributing
 
 Contributions are welcome under the same GPL-3.0-only license. See `CONTRIBUTING.md` before submitting changes.
+
+Pull requests are automatically reviewed with CodeRabbit. The repository-level configuration lives in `.coderabbit.yaml`.
