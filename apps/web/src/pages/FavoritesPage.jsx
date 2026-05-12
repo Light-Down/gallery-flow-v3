@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import Lightbox from '@/components/Lightbox.jsx';
 import ImageGrid from '@/components/premium/ImageGrid.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { trackGalleryEvent } from '@/lib/galleryAnalytics.js';
 
 const FavoritesPage = () => {
   const { slug } = useParams();
@@ -44,6 +45,14 @@ const FavoritesPage = () => {
         }
 
         setGallery(galleries[0]);
+        trackGalleryEvent({
+          eventType: 'favorites_view',
+          gallerySlug: slug,
+          result: 'success',
+          metadata: {
+            favoriteCount: JSON.parse(localStorage.getItem('favorites') || '{}')?.[slug]?.length || 0,
+          },
+        });
 
         const storedFavorites = JSON.parse(localStorage.getItem('favorites') || '{}');
         setFavorites(storedFavorites[slug] || []);

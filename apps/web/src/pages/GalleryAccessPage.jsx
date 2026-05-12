@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock } from 'lucide-react';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { trackGalleryEvent } from '@/lib/galleryAnalytics.js';
 
 const GalleryAccessPage = () => {
   const navigate = useNavigate();
@@ -26,6 +27,12 @@ const GalleryAccessPage = () => {
       const authData = await pb.collection('users').authWithPassword(slug, password, { $autoCancel: false });
 
       if (!authData?.token) {
+        trackGalleryEvent({
+          eventType: 'login_failure',
+          gallerySlug: slug,
+          result: 'failure',
+          reason: 'missing_token',
+        });
         toast.error('Invalid password. Please try again.');
         setLoading(false);
         return;
@@ -38,6 +45,12 @@ const GalleryAccessPage = () => {
       });
 
       if (galleries.length === 0) {
+        trackGalleryEvent({
+          eventType: 'login_failure',
+          gallerySlug: slug,
+          result: 'failure',
+          reason: 'gallery_not_found',
+        });
         toast.error('Gallery not found');
         pb.authStore.clear();
         setLoading(false);
@@ -47,6 +60,12 @@ const GalleryAccessPage = () => {
       const gallery = galleries[0];
 
       if (!gallery.isActive) {
+        trackGalleryEvent({
+          eventType: 'login_failure',
+          gallerySlug: slug,
+          result: 'failure',
+          reason: 'inactive_gallery',
+        });
         toast.error('This gallery is no longer active');
         pb.authStore.clear();
         setLoading(false);
@@ -54,8 +73,19 @@ const GalleryAccessPage = () => {
       }
 
       // Token is automatically stored in pb.authStore
+      trackGalleryEvent({
+        eventType: 'login_success',
+        gallerySlug: slug,
+        result: 'success',
+      });
       navigate(`/gallery/${slug}`);
     } catch (err) {
+      trackGalleryEvent({
+        eventType: 'login_failure',
+        gallerySlug: slug,
+        result: 'failure',
+        reason: 'invalid_credentials',
+      });
       toast.error('Invalid password. Please try again.');
     } finally {
       setLoading(false);

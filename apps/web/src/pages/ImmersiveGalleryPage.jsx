@@ -12,6 +12,7 @@ import Lightbox from '@/components/Lightbox.jsx';
 import ExpirationBadge from '@/components/premium/ExpirationBadge.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import GalleryTypeRenderer from '@/components/premium/GalleryTypeRenderer.jsx';
+import { trackGalleryEvent } from '@/lib/galleryAnalytics.js';
 
 const ImmersiveGalleryPage = () => {
   const { slug } = useParams();
@@ -47,6 +48,22 @@ const ImmersiveGalleryPage = () => {
 
         const activeGallery = galleries[0];
         setGallery(activeGallery);
+        trackGalleryEvent({
+          eventType: 'gallery_view',
+          gallerySlug: slug,
+          result: 'success',
+          metadata: {
+            galleryType: activeGallery.galleryType || null,
+          },
+        });
+        trackGalleryEvent({
+          eventType: 'session_start',
+          gallerySlug: slug,
+          result: 'success',
+          metadata: {
+            galleryType: activeGallery.galleryType || null,
+          },
+        });
 
         const storedFavorites = JSON.parse(localStorage.getItem('favorites') || '{}');
         setFavorites(storedFavorites[slug] || []);

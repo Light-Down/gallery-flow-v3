@@ -40,7 +40,16 @@ PB_ENCRYPTION_KEY
 PB_SUPERUSER_EMAIL
 PB_SUPERUSER_PASSWORD
 VITE_POCKETBASE_URL
+VITE_ANALYTICS_ENDPOINT
 ```
+
+For production on the main website, point analytics to the same-domain Next.js route:
+
+```text
+VITE_ANALYTICS_ENDPOINT=/api/galerie/events
+```
+
+Keep the Neon `DATABASE_URL` only in the Next.js/Hostinger website app. Do not expose it to this Vite frontend.
 
 Run PocketBase with:
 
