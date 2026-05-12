@@ -11,6 +11,10 @@ import { Label } from '@/components/ui/label';
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  const goToGalleryLogin = () => {
+    navigate('/');
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -92,11 +96,11 @@ const LoginPage = () => {
             <div className="mt-6 text-center">
               <Button
                 variant="ghost"
-                onClick={() => navigate('/')}
-                className="text-sm"
-              >
-                Back to home
-              </Button>
+                  onClick={goToGalleryLogin}
+                  className="text-sm"
+                >
+                  Zur Galerie-Anmeldung
+                </Button>
             </div>
           </div>
         </motion.div>

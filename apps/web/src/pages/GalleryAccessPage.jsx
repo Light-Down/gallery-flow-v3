@@ -8,7 +8,7 @@ import pb from '@/lib/pocketbaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock } from 'lucide-react';
+import { ArrowLeft, Camera, Lock } from 'lucide-react';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { trackGalleryEvent } from '@/lib/galleryAnalytics.js';
 
@@ -17,6 +17,10 @@ const GalleryAccessPage = () => {
   const [slug, setSlug] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const goToWebsite = () => {
+    window.location.href = '/';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -153,13 +157,22 @@ const GalleryAccessPage = () => {
                 </Button>
               </form>
 
-              <div className="mt-6 text-center">
+              <div className="mt-6 flex flex-col items-center gap-2 text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/admin/login')}
                   className="text-sm"
                 >
-                  Back to home
+                  <Camera className="mr-2 h-4 w-4" />
+                  Fotograf Login
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={goToWebsite}
+                  className="text-sm"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Zur Website
                 </Button>
               </div>
             </div>

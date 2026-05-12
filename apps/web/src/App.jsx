@@ -5,7 +5,6 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import ScrollToTop from '@/components/ScrollToTop.jsx';
 import ProtectedRoute from '@/components/ProtectedRoute.jsx';
-import HomePage from '@/pages/HomePage.jsx';
 import LoginPage from '@/pages/LoginPage.jsx';
 import GalleryAccessPage from '@/pages/GalleryAccessPage.jsx';
 import ImmersiveGalleryPage from '@/pages/ImmersiveGalleryPage.jsx';
@@ -17,11 +16,11 @@ import ImageManager from '@/pages/ImageManager.jsx';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename="/galerie">
         <ScrollToTop />
         <Toaster position="top-center" />
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<GalleryAccessPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/gallery-access" element={<GalleryAccessPage />} />
           <Route path="/gallery/:slug" element={<ImmersiveGalleryPage />} />

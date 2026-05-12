@@ -283,6 +283,7 @@ logger.error = (msg, options) => {
 }
 
 export default defineConfig({
+	base: '/galerie/',
 	optimizeDeps: {
 		include: allDeps,
 	},
@@ -290,7 +291,7 @@ export default defineConfig({
 	plugins: [
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), selectionModePlugin(), iframeRouteRestorationPlugin(), pocketbaseAuthPlugin()] : []),
 		react(),
-		addTransformIndexHtml
+		...(isDev ? [addTransformIndexHtml] : [])
 	],
 	server: {
 		port: 3000,
